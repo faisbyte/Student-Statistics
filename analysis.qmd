@@ -1,0 +1,659 @@
+---
+title: "Do sleep patterns, living arrangements and exercise habits influence the well being of DATA2x02 students?"
+date: "2024-09-02"
+author: "Faisal"
+format: 
+  html: 
+    embed-resources: true # Creates a single HTML file as output
+    code-fold: true # Code folding; allows you to show/hide code chunks
+    code-tools: true # Includes a menu to download the code file 
+    # code-tools are particularly important if you use inline R to 
+    # improve the reproducibility of your report
+table-of-contents: true # (Optional) Creates a table of contents
+number-sections: true # (Optional) Puts numbers next to heading/subheadings
+bibliography: citations.bib
+---
+
+```{r message=FALSE, warning=FALSE}
+# All necessary libraries
+library(tidyverse)
+library(gendercoder)
+library(janitor)
+library(hms)
+library(dplyr)
+library(gt)
+library(readxl)
+library(visdat)
+library(stringr)
+library(plotly)
+
+# Importing the dataset
+file_path <- "~/Downloads/DATA2x02_survey_2024_Responses.xlsx"
+
+survey_data <- read_excel(file_path)
+
+# Changing column names to make my life easier :)
+old_names <- colnames(survey_data)
+
+new_names = c(
+  "timestamp",
+  "target_grade",
+  "assignment_preference",
+  "trimester_or_semester",
+  "age",
+  "tendency_yes_or_no",
+  "pay_rent",
+  "urinal_choice",
+  "stall_choice",
+  "weetbix_count",
+  "weekly_food_spend",
+  "living_arrangements",
+  "weekly_alcohol",
+  "believe_in_aliens",
+  "height",
+  "commute",
+  "daily_anxiety_frequency",
+  "weekly_study_hours",
+  "work_status",
+  "social_media",
+  "gender",
+  "average_daily_sleep",
+  "usual_bedtime",
+  "sleep_schedule",
+  "sibling_count",
+  "allergy_count",
+  "diet_style",
+  "random_number",
+  "favourite_number",
+  "favourite_letter",
+  "drivers_license",
+  "relationship_status",
+  "daily_short_video_time",
+  "computer_os",
+  "steak_preference",
+  "dominant_hand",
+  "enrolled_unit",
+  "weekly_exercise_hours",
+  "weekly_paid_work_hours",
+  "assignments_on_time",
+  "used_r_before",
+  "team_role_type",
+  "university_year",
+  "favourite_anime",
+  "fluent_languages",
+  "readable_languages",
+  "country_of_birth",
+  "wam",
+  "shoe_size")
+
+colnames(survey_data) <- new_names
+```
+
+# Introduction & Analysis
+
+This report aims to establish relationships between various variables in a survey [@DATA2x02] conducted on students taking DATA2x02.
+
+## About the Sample
+
+The sample used in this study is not a random sample [@Random] due to the following reasons. First, the survey was posted on the Ed forum and the DATA2x02 site, and participation was optional. This creates a self-selection bias, where students who chose to participate may differ in characteristics, opinions, or behaviors from those who did not. Additionally, there was no restriction on the number of times one could respond, increasing the possibility of duplicate responses.
+
+For a random sample, all students enrolled in DATA2x02 should have had an equal chance of being selected to participate, but there is no indication that a random selection process was implemented. Instead, participation was open to anyone who saw the post and opted in, meaning the sample may not reflect the overall student population. Therefore, the survey responses are likely biased and not representative of all DATA2x02 students.
+
+## Bias
+
+The data collected in this survey is subject to significant bias, including selection and non-response bias. Selection bias arises because participation was voluntary, meaning students who are more active on Ed and engaged in the course may be overrepresented. This can affect variables like “What final grade are you aiming to achieve in DATA2x02?” as more diligent students are likely to aspire to higher grades. Similarly, the variables “How many hours a week do you spend studying?” and “How consistent would you rate your sleep schedule?” may reflect responses from more organized students, skewing the data.
+
+Non-response bias occurs because students who did not participate may have different characteristics or opinions. For example, those struggling in the unit or feeling disconnected may not have responded, leading to underreporting in variables like “How often would you say you feel anxious on a daily basis?” and “What is your WAM?” as anxious or underperforming students might be underrepresented.
+
+## Questions needing improvement
+
+Several survey questions need improvement to avoid vague or inconsistent responses. The question “How old are you?” is open-ended and allows for varied responses, such as “19” or “I am 19 years old,” violating response validation. This issue extends to other questions like “What is your shoe size?” and “How tall are you?” where no standardized format is given for answers, leading to similar inconsistencies.
+
+Additionally, the question “How many allergies do you know you have?” is too open-ended, allowing for varied interpretations. Some students may provide a number, while others may list the names of their allergies, resulting in inconsistent data. This same issue applies to questions like “How many languages can you speak fluently?” and “How many languages can you read?” where responses can differ in format and detail. Clear instructions and standardized response formats would help make the data more consistent and easier to analyze.
+
+# Results
+
+## Do students who rate their sleep schedule as highly consistent get more sleep on average compared to the recommended 7 hours per day?
+
+The code chunk below has the cleaned all data under the variable "average_daily_sleep". The `clean_sleep` function first converts responses like "Enough" to `NA` and transforms all time durations to decimal format. It standardizes all sleep values by removing non-numeric text [@Cleaning].
+
+```{r message=FALSE, warning=FALSE}
+# Making a function below to clean the column "average_daily_sleep".
+
+clean_sleep <- function(sleep_data) {
+  # Handle answers such as "Enough". Convert them to null.
+  sleep_data <- ifelse(str_detect(sleep_data, regex("enough", ignore_case = TRUE)), NA, sleep_data)
+
+  # Convert values like 4 hours 30 mins to 4.5 and so on
+  sleep_data <- str_replace_all(sleep_data, regex("([0-9]+)\\s*hours?\\s*([0-9]*)\\s*mins?", ignore_case = TRUE), function(x) {
+    hours <- as.numeric(str_match(x, "([0-9]+)\\s*hours?")[,2])
+    mins <- as.numeric(str_match(x, "([0-9]+)\\s*mins?")[,2])
+    mins <- ifelse(is.na(mins), 0, mins)
+    return(hours + mins / 60)
+  })
+  
+  # Converting values like 6.5 hours to 6.5
+  sleep_data <- str_replace_all(sleep_data, regex("([0-9\\.]+)\\s*hours?", ignore_case = TRUE), "\\1")
+  
+  # Convert values like 7 to 7.0.
+  sleep_data <- as.numeric(sleep_data)
+  
+  return(sleep_data)
+}
+
+survey_data$average_daily_sleep <- clean_sleep(survey_data$average_daily_sleep)
+```
+
+```{r message=FALSE, warning=FALSE}
+#| label: fig-1
+#| fig-cap: "Comparison of Sleep Schedule Consistency with Average Daily Sleep"
+
+# Create the boxplot using Plotly
+plot <- plot_ly(survey_data, x = ~sleep_schedule, y = ~average_daily_sleep, type = "box", boxpoints = "all") %>%
+  add_trace(y = rep(7, nrow(survey_data)), type = "scatter", mode = "lines", line = list(dash = "dash", color = "red"), name = "Recommended 7 hours") %>%
+  layout(
+    title = "Comparison of Sleep Schedule Consistency with Average Daily Sleep",
+    xaxis = list(title = "Sleep Schedule Consistency"),
+    yaxis = list(title = "Average Daily Sleep (hours)"),
+    showlegend = FALSE
+  )
+
+# Show the plot
+plot
+```
+
+The boxplot @fig-1 above [@Plotly] visualizes the relationship between students' sleep schedule consistency and the average sleep they get everyday in hours. Each box represents the interquartile range of sleep hours for a given level of sleep schedule consistency, with the median represented by the line inside the box.
+
+Across different levels of consistency, the distribution of average daily sleep appears to have a similar range, with most medians slightly above or near the recommended 7 hours a day, shown by the red line. However, there are variations in the spread of sleep hours, with some students reporting as low as 4 hours and others exceeding 10 hours, regardless of their sleep schedule consistency rating.
+
+To understand this better, lets perform a 1 Sample T-Test to understand the relationship shown above.
+
+1.  Hypothesis
+
+    -   Null Hypothesis: The average amount of sleep per day among students who rate their sleep schedule as highly consistent is equal to 7 hours.
+
+        $H_0$ : $\mu$ = 7
+
+    -   Alternate Hypothesis: The average amount of sleep per day among students who rate their sleep schedule as highly consistent is not equal to 7 hours.
+
+        $H_1$ : $\mu$ $\neq$ 7
+
+2.  Assumptions:
+
+    -   Independence: The data points are independent of each other.
+
+    -   Normality: The distribution of the average daily sleep hours in the sample is approximately normal as the sample size is large (by the Central Limit Theorem).
+
+3.  Test Statistic:
+
+    The test statistic is calculated as:
+
+    $$
+    t = \frac{\bar{x} - \mu_0}{\frac{s}{\sqrt{n}}}
+    $$
+
+    Where:
+
+    -   $\bar{x}$ is the sample mean of average daily sleep = 7.93
+
+    -   $\mu_0$ is the hypothesized population mean (7 hours) = 7
+
+    -   $s$ is the sample standard deviation = 1.52
+
+    -   $n$ is he sample size (number of students with highly consistent sleep schedules) = 77
+
+    The Test Statistic calculated from above = 5.47
+
+```{r message=FALSE, warning=FALSE}
+# Subset data for highly consistent sleep schedule (e.g., sleep_schedule >= 8)
+highly_consistent_sleep <- survey_data %>% 
+  filter(sleep_schedule >= 8)
+
+# Calculate the sample mean of average daily sleep
+sample_mean <- mean(highly_consistent_sleep$average_daily_sleep, na.rm = TRUE)
+
+# Hypothesized population mean (7 hours)
+hypothesized_mean <- 7
+
+# Calculate the sample standard deviation
+sample_sd <- sd(highly_consistent_sleep$average_daily_sleep, na.rm = TRUE)
+
+# Calculate the sample size (n)
+sample_size <- sum(!is.na(highly_consistent_sleep$average_daily_sleep))
+
+# Create a data frame with the values
+summary_data <- data.frame(
+  Metric = c("Sample Mean", "Hypothesized Population Mean", "Sample Standard Deviation", "Sample Size"),
+  Value = c(sample_mean, hypothesized_mean, sample_sd, sample_size)
+)
+
+# Use the gt package to create a formatted table
+summary_data %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Sleep Data for Highly Consistent Sleep Schedule"
+  )
+```
+
+4.  Observed Test Statistic: The observed test statistic is the value of T calculated from the above data below which is roughly equal to 5.38.
+
+```{r message=FALSE, warning=FALSE}
+# Subset data for highly consistent sleep schedule (e.g., sleep_schedule >= 8)
+highly_consistent_sleep <- survey_data %>% 
+  filter(sleep_schedule >= 8)
+
+# Perform the 1-sample t-test
+t_test_result <- t.test(highly_consistent_sleep$average_daily_sleep, mu = 7)
+
+# Extract relevant t-test values
+observed_t_statistic <- t_test_result$statistic
+p_value <- t_test_result$p.value
+mean_diff <- t_test_result$estimate - t_test_result$null.value
+conf_int <- t_test_result$conf.int
+
+# Create a data frame with the test results
+t_test_summary <- data.frame(
+  Metric = c("Observed Test Statistic (t)", "p-value", "Mean Difference", 
+             "95% Confidence Interval Lower Bound", "95% Confidence Interval Upper Bound"),
+  Value = c(observed_t_statistic, p_value, mean_diff, conf_int[1], conf_int[2])
+)
+
+# Use gt to format the table
+t_test_summary %>%
+  gt() %>%
+  tab_header(
+    title = "1-Sample T-Test Summary"
+  ) %>%
+  fmt_number(
+    columns = vars(Value),
+    decimals = 4
+  ) %>%
+  fmt_scientific(
+    columns = vars(Value),
+    rows = Metric == "p-value"
+  )
+```
+
+5.  P - Value: P - Value is calculated as follows:
+
+    We can see that the P - Value we get is $7.907 \times 10^{-7}$. This indicates that there is strong evidence against the null hypothesis.
+
+```{r message=FALSE, warning=FALSE}
+# Subset data for highly consistent sleep schedule (e.g., sleep_schedule >= 8)
+highly_consistent_sleep <- survey_data %>% 
+  filter(sleep_schedule >= 8)
+
+# Perform the 1-sample t-test
+t_test_result <- t.test(highly_consistent_sleep$average_daily_sleep, mu = 7)
+
+# Extract the p-value
+p_value <- t_test_result$p.value
+
+# Create a data frame with the p-value
+p_value_summary <- data.frame(
+  Metric = "P-Value",
+  Value = p_value
+)
+
+# Use gt to format the table, showing p-value in scientific notation
+p_value_summary %>%
+  gt() %>%
+  tab_header(
+    title = "1-Sample T-Test P-Value"
+  ) %>%
+  fmt_scientific(
+    columns = vars(Value),
+    decimals = 6
+  )
+```
+
+6.  Limitations: While the test indicates a statistically significant result, it is important to consider the following limitations:
+
+    -   Self-Reported Data Bias: Sleep data is self-reported, leading to potential inaccuracies...
+
+    -   No Measure of Sleep Quality: Our analysis focuses on the quantity of sleep but does not account for sleep quality, which may affect the outcomes...
+
+    -   Possible Confounding Variables: Factors like stress, workload, or living environment could affect sleep consistency and hours slept...
+
+7.  Conclusion: Since the P - value calculated is much smaller than the significance level of 0.05, we reject the null hypothesis.
+
+    Therefore, there is strong statistical evidence that the average amount of sleep per day among students who rate their sleep schedule as highly consistent is not equal to 7 hours.
+
+## Is there an association between a student's living arrangements and whether they have a part time job?
+
+The code chunk below explains how the variable "living_arrangements" has been cleaned: the `clean_living_arrangements` function checks if each entry under the "living_arrangements" column matches one of the predefined allowed categories. If not, it is replaced with "Other"[@Cleaning].
+
+```{r message=FALSE, warning=FALSE}
+# Cleaning the variable "living_arrangements"
+
+# These are the allowed categories below
+
+allowed_categories <- c(
+  "With parent(s) and/or sibling(s)",
+  "With partner",
+  "College or student accommodation",
+  "Alone",
+  "Share house"
+)
+
+# Making a function to clean the data
+clean_living_arrangements <- function(arrangements) {
+  ifelse(arrangements %in% allowed_categories, arrangements, "Other")
+}
+
+# Apply the function
+survey_data$living_arrangements <- clean_living_arrangements(survey_data$living_arrangements)
+```
+
+In the code chunk below, I have used the `clean_work_status` function to clean all data under the column "work_status". The function checks if all entries in the column are within the predefined variables, if not, they are replaced by "Other"[@Cleaning].
+
+```{r message=FALSE, warning=FALSE}
+# Cleaning the variable "work_status".
+
+# Define the allowed categories for work_status
+allowed_work_status <- c(
+  "Full time",
+  "Part time",
+  "Casual",
+  "Self employed",
+  "Contractor",
+  "I don't currently work"
+)
+
+# Function to clean the work_status data
+clean_work_status <- function(status) {
+  ifelse(status %in% allowed_work_status, status, "Other")
+}
+
+# Apply the cleaning function to the "work_status" column
+survey_data$work_status <- clean_work_status(survey_data$work_status)
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#| label: fig-2
+#| fig-cap: "Barplot showing relationship between living arrangements and work status"
+
+# Summarize the data to count occurrences of each combination
+summary_data <- survey_data %>%
+  group_by(living_arrangements, work_status) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Create the grouped bar chart using Plotly
+plot <- plot_ly(summary_data, x = ~living_arrangements, y = ~count, color = ~work_status, 
+                type = "bar", text = ~work_status, hoverinfo = "text+y") %>%
+  layout(
+    title = "Association between Living Arrangements and Work Status",
+    xaxis = list(title = "Living Arrangements"),
+    yaxis = list(title = "Count"),
+    barmode = "group"
+  )
+
+# Show the plot
+plot
+```
+
+The bar chart @fig-2 visualizes the relationship between students' living arrangements and their work status. Each bar represents the count of students in a particular living arrangement, divided into different categories of work status. The chart shows that the majority of students who live "With parent(s) and/or sibling(s)" and "Share house" tend to report that they do not currently work, while "Casual" and "Part-time" work statuses are also common in these living arrangements. There are fewer students living "Alone" or "With partner," and they are more evenly distributed across work categories. The visual indicates potential differences in work status distributions depending on where the student lives, which can be further examined using the chi-square test [@Chisq] for independence below.
+
+1.  Hypothesis:
+
+    -   Null Hypothesis $H_0$: Living arrangements and part-time job status are independent.
+
+    -   Alternate Hypothesis: $H_1$: Living arrangements and part time job status are not independent.
+
+2.  Assumptions:
+
+    -   Both variables are categorical
+
+    -   Observations are independent; i.e each student's response should not influence another's.
+
+    -   Expected frequencies: The expected frequency for each cell in the contingency table should generally be at least 5 to ensure that the chi-square approximation is valid.
+
+3.  Test Statistic:
+
+    $\chi^2 = \sum \frac{(O_i - E_i)^2}{E_i}$ , where
+
+    -   $O_i$ is the observed frequency in each cell in the contingency table
+
+    -   $E_i$ is the expected frequency for each cell under the assumption of independence
+
+    The test statistic calculated by summing all the values in the contingency table is 10.0063.
+
+```{r message=FALSE, warning=FALSE}
+# Create a contingency table for living arrangements and part-time job status
+contingency_table <- table(survey_data$living_arrangements, survey_data$work_status == "Part time")
+
+# Perform the chi-square test
+chi_square_test_result <- chisq.test(contingency_table)
+
+# Extract the observed frequencies (Oi)
+observed_frequencies <- chi_square_test_result$observed
+
+# Extract the expected frequencies (Ei)
+expected_frequencies <- chi_square_test_result$expected
+
+# Convert observed frequencies to data frame for gt formatting
+observed_table_df <- as.data.frame(observed_frequencies)
+
+# Create a gt table for Observed Frequencies (Oi)
+observed_table <- gt(observed_table_df) %>%
+  tab_header(
+    title = "Observed Frequencies (Oi)"
+  ) %>%
+  fmt_number(
+    columns = everything(),
+    decimals = 0
+  )
+
+# Display Observed Frequencies table
+observed_table
+
+# Convert expected frequencies to data frame for gt formatting
+expected_table_df <- as.data.frame(expected_frequencies)
+
+# Create a gt table for Expected Frequencies (Ei)
+expected_table <- gt(expected_table_df) %>%
+  tab_header(
+    title = "Expected Frequencies (Ei)"
+  ) %>%
+  fmt_number(
+    columns = everything(),
+    decimals = 4
+  )
+
+# Display Expected Frequencies table
+expected_table
+```
+
+4.  Observed Test Statistic: calculated below as 10.006.
+
+```{r warning=FALSE, message=FALSE}
+# Create a contingency table for living arrangements and part-time job status
+contingency_table <- table(survey_data$living_arrangements, survey_data$work_status == "Part time")
+
+# Perform the chi-square test
+chi_square_test_result <- chisq.test(contingency_table)
+
+# Extract chi-square statistic, degrees of freedom, and p-value
+test_statistics <- data.frame(
+  Statistic = c("Chi-Square", "Degrees of Freedom", "P-Value"),
+  Value = c(
+    chi_square_test_result$statistic, 
+    chi_square_test_result$parameter, 
+    chi_square_test_result$p.value
+  )
+)
+
+# Create a gt table for the test statistics
+statistics_table <- gt(test_statistics) %>%
+  tab_header(
+    title = "Chi-Square Test Results"
+  ) %>%
+  fmt_number(
+    columns = "Value",
+    decimals = 4
+  )
+
+# Display the statistics table
+statistics_table
+```
+
+5.  P - Value: the P - Value as shown in the above code chunk is 0.0403 which indicates that there is evidence against $H_0$.
+6.  Limitations:
+    -   Self-reported data: As with the previous analysis, this is based on self-reported data, which may be prone to inaccuracies or misreporting.
+
+    -   Simplification of work status: Work status is grouped into categories, but within each category, there could be variability. This variability is not captured in the analysis.
+7.  Conclusion: as the P - Value is lesser than the significance level of 0.05, we have evidence to support $H_1$ hereby suggesting that there is an association between students' living arrangements and whether or not they have a part time job.
+
+## Does the level of anxiety differ significantly based on the amount of weekly exercise students engage in?
+
+Below, I have used the `clean_exercise_hours` function to replace any missing or "N/A" values with "0". and to set any values below 1.0 to 0 (as there were 0 entries with less than 1 hour of exercise), and categorize values above 30.0 to "30+"[@Cleaning].
+
+```{r message=FALSE, warning=FALSE}
+# Cleaning the variable weekly_exercise_hours
+
+# Function to clean the weekly_exercise_hours data
+clean_exercise_hours <- function(hours) {
+  hours <- ifelse(is.na(hours) | hours == "N/A", 0, hours)
+  hours <- ifelse(hours < 1.0, 0, hours)
+  hours <- ifelse(hours > 30.0, "30+", hours)
+  return(hours)
+}
+
+# Apply the cleaning function to the "weekly_exercise_hours" column
+survey_data$weekly_exercise_hours <- clean_exercise_hours(survey_data$weekly_exercise_hours)
+```
+
+```{r warning=FALSE, message=FALSE}
+#| label: fig-3
+#| fig-cap: "Scatterplot showing relationship between exercise hours and anxiety freuqnecy"
+
+# Remove rows with NA values in either weekly_exercise_hours or daily_anxiety_frequency
+cleaned_data <- survey_data %>%
+  filter(!is.na(weekly_exercise_hours) & !is.na(daily_anxiety_frequency))
+
+# Convert "30+" to 30 for numeric consistency
+cleaned_data$weekly_exercise_hours <- as.numeric(gsub("30\\+", "30", cleaned_data$weekly_exercise_hours))
+
+# Create the plot with custom trace names
+fig <- plot_ly(cleaned_data, x = ~weekly_exercise_hours, y = ~daily_anxiety_frequency, 
+               type = 'scatter', mode = 'markers', 
+               marker = list(size = 8, opacity = 0.6), 
+               name = 'Anxiety Data')
+
+# Add a smoothing line (LOESS) with a custom name
+fig <- fig %>% add_lines(x = ~weekly_exercise_hours, 
+                         y = fitted(loess(daily_anxiety_frequency ~ weekly_exercise_hours, data = cleaned_data)), 
+                         line = list(color = 'blue'), 
+                         name = 'Trend Line')
+
+# Customize the layout
+fig <- fig %>% layout(title = 'Scatter Plot of Weekly Exercise Hours vs Anxiety Frequency',
+                      xaxis = list(title = 'Weekly Exercise Hours'),
+                      yaxis = list(title = 'Daily Anxiety Frequency (1-10)'))
+
+# Show the plot
+fig
+```
+
+In the scatter plot above @fig-3, we observe that the level of daily anxiety frequency generally decreases as the number of weekly exercise hours increases. The trend line, fitted using LOESS smoothing, highlights a gradual decline in anxiety levels for students who exercise more, especially in the range between 0 and 10 weekly exercise hours. After this point, the decrease in anxiety levels plateaus, indicating that additional exercise may not have as strong an impact on reducing anxiety beyond a certain threshold. The variability in anxiety levels is also more pronounced at lower exercise hours, where students report a wider range of anxiety scores. The Monte Carlo test [@MonteCarlo] will allow us to assess whether these observed differences are statistically significant by simulating distributions under the null hypothesis (that weekly exercise does not influence anxiety) and comparing these to the actual data. The null hypothesis suggests that any differences in anxiety based on exercise are due to random variation, while the alternative suggests a meaningful relationship between exercise and anxiety levels among the students.
+
+1.  Hypothesis:
+    -   Null Hypothesis $H_0$: There is no relationship between weekly exercise hours and daily anxiety frequency
+
+    -   Alternate Hypothesis $H_1$: There is a relationship between weekly exercise hours and daily anxiety frequency
+2.  Assumptions:
+    -   The data points are independent of each other
+
+    -   The null hypothesis assumes there is no actual relationship between the two variables
+3.  Test Statistic: I have used Spearman's correlation coefficient as the test statistic to measure the strength and direction of the relationship between exercise hours and anxiety levels which is -0.2294188.
+
+```{r message=FALSE, warning=FALSE}
+# Cleaning data once again to remove "NA" values
+cleaned_data <- survey_data %>%
+  filter(!is.na(weekly_exercise_hours) & !is.na(daily_anxiety_frequency))
+
+# Convert "30+" to 30 for consistency
+cleaned_data$weekly_exercise_hours <- as.numeric(gsub("30\\+", "30", cleaned_data$weekly_exercise_hours))
+
+# Calculate Spearman correlation
+observed_stat <- cor(cleaned_data$weekly_exercise_hours, cleaned_data$daily_anxiety_frequency, method = "spearman")
+
+# Create a data frame for the correlation result
+correlation_table <- data.frame(
+  Statistic = "Spearman Correlation",
+  Value = round(observed_stat, 4)  # Format the correlation value to 4 decimal places
+)
+
+# Format the result using gt
+formatted_table <- gt(correlation_table) %>%
+  tab_header(
+    title = "Spearman Correlation between Weekly Exercise Hours and Daily Anxiety Frequency"
+  ) %>%
+  fmt_number(
+    columns = "Value",
+    decimals = 4
+  )
+
+# Display the formatted table
+formatted_table
+```
+
+4.  Monte Carlo Simulation: Randomly permute the values of the **daily_anxiety_frequency** variable to break any real relationship, then compute the Spearman correlation for each permuted dataset. This simulates the null hypothesis.
+
+```{r message=FALSE, warning=FALSE}
+# Set seed for reproducibility
+set.seed(123)
+
+# Remove NA values and clean the data
+cleaned_data <- survey_data %>%
+  filter(!is.na(weekly_exercise_hours) & !is.na(daily_anxiety_frequency))
+
+# Convert "30+" to 30 for consistency
+cleaned_data$weekly_exercise_hours <- as.numeric(gsub("30\\+", "30", cleaned_data$weekly_exercise_hours))
+
+# Calculate the observed test statistic
+observed_stat <- cor(cleaned_data$weekly_exercise_hours, cleaned_data$daily_anxiety_frequency, method = "spearman")
+
+# Monte Carlo simulation
+num_simulations <- 1000
+null_distribution <- replicate(num_simulations, {
+  permuted_anxiety <- sample(cleaned_data$daily_anxiety_frequency)
+  cor(cleaned_data$weekly_exercise_hours, permuted_anxiety, method = "spearman")
+})
+
+# Calculate p-value
+p_value <- mean(abs(null_distribution) >= abs(observed_stat))
+
+# Create a data frame to store the results
+results_table <- data.frame(
+  Statistic = c("Observed Correlation", "P-value from Monte Carlo Simulation"),
+  Value = c(round(observed_stat, 4), round(p_value, 4))
+)
+
+# Format the results using gt
+formatted_table <- gt(results_table) %>%
+  tab_header(
+    title = "Monte Carlo Simulation Results",
+    subtitle = "Correlation between Weekly Exercise Hours and Daily Anxiety Frequency"
+  ) %>%
+  fmt_number(
+    columns = "Value",
+    decimals = 4
+  )
+
+# Display the formatted table
+formatted_table
+```
+
+5.  P-Value: the P-Value calculated above is 0, suggesting that none of the randomly permuted correlations from the null distribution were as extreme as or more extreme than the observed correlation, meaning that the relationship between weekly exercise hours and daily anxiety frequency is statistically significant.
+6.  Limitations:
+    -   Confounding factors: Other factors like stress, workload, or social life could influence both exercise frequency and anxiety, but these were not accounted for in the analysis.
+
+    -   Monte Carlo Assumptions: The Monte Carlo simulation assumes that randomly permuting the anxiety values breaks any real association, but this doesn't consider potential latent variables affecting both exercise and anxiety.
+7.  Conclusion: as the P-Value \< 0.05, there is a significant relationship between weekly exercise hours and daily anxiety frequency. Specifically, students who engage in more weekly exercise tend to report lower levels of anxiety on average.
+
+# Conclusion
+
+The analysis suggests that sleep patterns, living arrangements, and exercise habits significantly influence the well-being of DATA2x02 students. Students with highly consistent sleep schedules tend to get more sleep than the recommended 7 hours, indicating the importance of sleep regularity. Additionally, living arrangements are associated with whether students hold part-time jobs, hinting at a possible relationship between their home environment and work-life balance. Furthermore, weekly exercise habits are linked to anxiety levels, with higher exercise frequency correlating with lower anxiety. These findings underscore the impact of lifestyle factors on student well-being.
